@@ -92,7 +92,7 @@ object BeastScala {
             .coalesce(1)
             .saveAsShapefile("wildfireIntensityCounty")
 
-        // args:
+        // args: task3 wildfiredb_ZIP.parquet Riverside wildfire<Riverside>
         case "task3" =>
 
           val countyName: String = args(2)
