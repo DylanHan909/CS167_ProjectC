@@ -37,7 +37,7 @@ object BeastScala {
       var validOperation = true
 
       operation match {
-        // args: task1 wildfiredb_1k.csv.bz2
+        // args: task1 wildfiredb_10k.csv.bz2
         case "task1" =>
           val wildfireDF = sparkSession.read.format("csv")
             .option("sep", "\t")
