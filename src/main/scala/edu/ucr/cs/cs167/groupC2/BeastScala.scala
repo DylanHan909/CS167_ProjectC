@@ -50,9 +50,9 @@ object BeastScala {
           val wildFireSpatialJoinRDD: RDD[(IFeature, IFeature)] = wildfireWithGeometryRDD.spatialJoin(countiesRDD)
           val wildfireCountyAdd: DataFrame = wildFireSpatialJoinRDD.map({ case (wildfire, county) => Feature.append(wildfire, county.getAs[String]("GEOID"), "County") })
             .toDataFrame(sparkSession)
-//          wildfireCountyAdd.printSchema()
+          //          wildfireCountyAdd.printSchema()
           val convertedDF: DataFrame = wildfireCountyAdd.selectExpr("x", "y", "acq_date", "frp", "acq_time", "County").drop("geometry")
-//          convertedDF.printSchema()
+          //          convertedDF.printSchema()
           convertedDF.write.mode(SaveMode.Overwrite).parquet("wildfiredb_ZIP")
 
         // args: task2 wildfiredb_ZIP 01/01/2016 12/31/2017
@@ -71,7 +71,7 @@ object BeastScala {
             WHERE to_date(acq_date, 'yyyy-MM-dd') BETWEEN to_date('""" + startDate + """', 'MM/dd/yyyy') AND to_date('""" + endDate + """', 'MM/dd/yyyy')
             GROUP BY County;
             """).createOrReplaceTempView("wild_query")
-            //.foreach(row => println(s"${row.get(0)}\t${row.get(1)}"))
+          //.foreach(row => println(s"${row.get(0)}\t${row.get(1)}"))
 
           // Load the county dataset using Beast and convert to a Dataframe.
           sparkContext.shapefile("tl_2018_us_county.zip")
@@ -94,6 +94,32 @@ object BeastScala {
 
         // args:
         case "task3" =>
+
+          val countyName: String = args(2)
+          val outputFile: String = args(3)
+          sparkSession.read.parquet(inputFile)
+            .createOrReplaceTempView("wildfire")
+
+          sparkContext.shapefile("tl_2018_us_county.zip")
+            .toDataFrame(sparkSession)
+            .createOrReplaceTempView("counties")
+
+
+          val GEOID = sparkSession.sql(
+            s"""SELECT GEOID
+                    FROM counties
+                    WHERE NAME = "$countyName" AND STATEFP = 6"""
+          ).first().get(0)
+
+          sparkSession.sql(
+            s"""SELECT year_month, SUM(ymonths.frp) AS fire_intensity FROM (
+              |    SELECT frp, date_format(to_date(acq_date, 'yyyy-MM-dd'), 'yyyy-MM') AS year_month
+              |    FROM wildfire
+              |    WHERE County = '${GEOID}') AS ymonths
+              |  GROUP BY year_month
+              |  ORDER BY year_month""".stripMargin
+          ).coalesce(1).write.option("header", true).csv(outputFile)
+
         case _ => validOperation = false
       }
       val t2 = System.nanoTime()
