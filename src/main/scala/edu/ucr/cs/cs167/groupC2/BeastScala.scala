@@ -37,7 +37,7 @@ object BeastScala {
       var validOperation = true
 
       operation match {
-        // args: task1 wildfiredb_1k.csv
+        // args: task1 wildfiredb_1k.csv.bz2
         case "task1" =>
           val wildfireDF = sparkSession.read.format("csv")
             .option("sep", "\t")
@@ -92,7 +92,7 @@ object BeastScala {
             .coalesce(1)
             .saveAsShapefile("wildfireIntensityCounty")
 
-        // args: task3 wildfiredb_ZIP.parquet Riverside wildfire<Riverside>
+        // args: task3 wildfiredb_ZIP Riverside wildfire<Riverside>
         case "task3" =>
 
           val countyName: String = args(2)
