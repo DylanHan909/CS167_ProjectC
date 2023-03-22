@@ -101,22 +101,28 @@ object BeastScala {
         // args: task3 wildfiredb_ZIP Riverside wildfire<Riverside>
         case "task3" =>
 
+          //retrieve county name and output file name from command line
           val countyName: String = args(2)
           val outputFile: String = args(3)
+
+          //read parquet file in and create view as wildfire
           sparkSession.read.parquet(inputFile)
             .createOrReplaceTempView("wildfire")
 
+          //read counties file in and create view as counties
           sparkContext.shapefile("tl_2018_us_county.zip")
             .toDataFrame(sparkSession)
             .createOrReplaceTempView("counties")
 
-
+          //query to obtain the geoid of the specific county specified in california and store as a value
           val GEOID = sparkSession.sql(
             s"""SELECT GEOID
                     FROM counties
                     WHERE NAME = "$countyName" AND STATEFP = 6"""
           ).first().get(0)
 
+          //query to sum the intensity over time for the given county based on the GEOID and date in format yyyy-MM and
+          //output as a CSV file
           sparkSession.sql(
             s"""SELECT year_month, SUM(ymonths.frp) AS fire_intensity FROM (
               |    SELECT frp, date_format(to_date(acq_date, 'yyyy-MM-dd'), 'yyyy-MM') AS year_month
