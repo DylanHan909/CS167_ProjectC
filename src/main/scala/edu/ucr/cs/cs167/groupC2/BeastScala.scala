@@ -39,20 +39,26 @@ object BeastScala {
       operation match {
         // args: task1 wildfiredb_10k.csv.bz2
         case "task1" =>
+          //Read in the csv file and run the following options to read in the data efficiently
           val wildfireDF = sparkSession.read.format("csv")
             .option("sep", "\t")
             .option("inferSchema", "true")
             .option("header", "true")
             .load(inputFile)
+          //Make an RDD object that contains the attributes to keep, converting frp to be usable for analysis, and introduce the geometry attribute,
           val wildfireWithGeometryRDD: SpatialRDD = wildfireDF.selectExpr("x", "y", "acq_date", "double(split(frp,',')[0]) AS frp", "acq_time", "ST_CreatePoint(x,y) AS geometry").toSpatialRDD
+          //Take in the county list as a dataframe via Beast
           val countiesDF = sparkSession.read.format("shapefile").load("tl_2018_us_county.zip")
+          //Convert it into a SpatialRDD
           val countiesRDD: SpatialRDD = countiesDF.toSpatialRDD
+          //Spatial Join Querty started to find county of each wildfire
           val wildFireSpatialJoinRDD: RDD[(IFeature, IFeature)] = wildfireWithGeometryRDD.spatialJoin(countiesRDD)
+          //Add new attribute County from attribute GEOID and convert this result to a dataframe
           val wildfireCountyAdd: DataFrame = wildFireSpatialJoinRDD.map({ case (wildfire, county) => Feature.append(wildfire, county.getAs[String]("GEOID"), "County") })
             .toDataFrame(sparkSession)
-          //          wildfireCountyAdd.printSchema()
+          //Final dataframe with the selected columns and dropped geometry column
           val convertedDF: DataFrame = wildfireCountyAdd.selectExpr("x", "y", "acq_date", "frp", "acq_time", "County").drop("geometry")
-          //          convertedDF.printSchema()
+          //Final dataframe written to a Parquet file
           convertedDF.write.mode(SaveMode.Overwrite).parquet("wildfiredb_ZIP")
 
         // args: task2 wildfiredb_ZIP 01/01/2016 12/31/2017
